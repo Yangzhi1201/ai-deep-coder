@@ -130,6 +130,29 @@ def main() -> None:
 
     print_welcome(console, config)
 
+    # Let user confirm or change the workspace directory
+    console.print(f"Workspace: [cyan]{config.workspace}[/cyan]")
+    try:
+        answer = console.input(
+            "Use this directory as workspace? ([bold green]Y[/bold green]/n/path): "
+        ).strip()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[dim]Goodbye![/dim]")
+        return
+
+    if answer.lower() in ("n", "no"):
+        console.print("[dim]Cancelled.[/dim]")
+        return
+    elif answer and answer.lower() not in ("y", "yes", ""):
+        from pathlib import Path
+
+        new_path = Path(answer).expanduser().resolve()
+        if not new_path.is_dir():
+            console.print(f"[red]Directory does not exist: {new_path}[/red]")
+            return
+        config.workspace = new_path
+        console.print(f"Workspace changed to: [cyan]{config.workspace}[/cyan]")
+
     console.print("[dim]Loading agent...[/dim]")
     try:
         agent = create_coding_agent(config)
