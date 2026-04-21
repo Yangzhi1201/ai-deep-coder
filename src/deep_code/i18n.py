@@ -23,6 +23,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 - `/workspace` — 显示当前工作区
 - `/language`  — 切换语言 (zh/en)
 - `/clear`     — 清除对话历史
+- `/init`      — 初始化项目 (生成 AGENTS.md)
 - `/quit`      — 退出应用
 
 **功能:**
@@ -73,6 +74,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 - `/workspace` — Show current workspace
 - `/language`  — Switch language (zh/en)
 - `/clear`     — Clear conversation history
+- `/init`      — Initialize project (generate AGENTS.md)
 - `/quit`      — Exit the application
 
 **Capabilities:**

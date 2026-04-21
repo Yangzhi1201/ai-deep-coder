@@ -268,6 +268,11 @@ def main() -> None:
                 if handled:
                     continue
 
+            if cmd_lower == "/init":
+                from deep_code.init import run_init
+                run_init(config.workspace)
+                continue
+
             if handle_slash_command(user_input.strip(), config, console):
                 continue
 

@@ -20,7 +20,8 @@
       "Bash(git push *)",
       "Bash(grep -E \"\\\\.\\(py|toml|txt|md\\)$\")",
       "Bash(python *)",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "Bash(PYTHONPATH=src python -c \"from deep_code.init import run_init; print\\('import OK'\\)\")"
     ]
   }
 }

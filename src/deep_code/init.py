@@ -1,4 +1,4 @@
-"""Init command: generate AGENTS.md and .agents/ directory for a project."""
+"""Interactive init command: generate AGENTS.md and .agents/ directory for a project."""
 
 from __future__ import annotations
 
@@ -7,91 +7,16 @@ import os
 from pathlib import Path
 
 from rich.console import Console
+from rich.prompt import Confirm, Prompt
 
-# ---------------------------------------------------------------------------
-# Language / framework detection
-# ---------------------------------------------------------------------------
-
-# (extension, language_name)
-_EXT_TO_LANG: dict[str, str] = {
-    ".py": "Python",
-    ".js": "JavaScript",
-    ".ts": "TypeScript",
-    ".tsx": "TypeScript (React)",
-    ".jsx": "JavaScript (React)",
-    ".java": "Java",
-    ".go": "Go",
-    ".rs": "Rust",
-    ".rb": "Ruby",
-    ".php": "PHP",
-    ".swift": "Swift",
-    ".kt": "Kotlin",
-    ".cs": "C#",
-    ".cpp": "C++",
-    ".c": "C",
-    ".dart": "Dart",
-    ".lua": "Lua",
-    ".scala": "Scala",
-    ".zig": "Zig",
-    ".ex": "Elixir",
-    ".exs": "Elixir",
-}
-
-# (marker_file_or_dir, framework_name)
-_FRAMEWORK_MARKERS: list[tuple[str, str]] = [
-    ("pyproject.toml", "Python (pyproject)"),
-    ("setup.py", "Python (setuptools)"),
-    ("requirements.txt", "Python (pip)"),
-    ("Pipfile", "Python (pipenv)"),
-    ("poetry.lock", "Python (poetry)"),
-    ("manage.py", "Django"),
-    ("package.json", "Node.js"),
-    ("tsconfig.json", "TypeScript"),
-    ("next.config.js", "Next.js"),
-    ("next.config.ts", "Next.js"),
-    ("next.config.mjs", "Next.js"),
-    ("nuxt.config.ts", "Nuxt.js"),
-    ("vite.config.ts", "Vite"),
-    ("vite.config.js", "Vite"),
-    ("webpack.config.js", "Webpack"),
-    ("angular.json", "Angular"),
-    ("vue.config.js", "Vue"),
-    ("svelte.config.js", "Svelte"),
-    ("Cargo.toml", "Rust (Cargo)"),
-    ("go.mod", "Go modules"),
-    ("pom.xml", "Maven (Java)"),
-    ("build.gradle", "Gradle"),
-    ("build.gradle.kts", "Gradle (Kotlin)"),
-    ("Gemfile", "Ruby (Bundler)"),
-    ("composer.json", "PHP (Composer)"),
-    ("CMakeLists.txt", "CMake"),
-    ("Makefile", "Make"),
-    ("Dockerfile", "Docker"),
-    ("docker-compose.yml", "Docker Compose"),
-    ("docker-compose.yaml", "Docker Compose"),
-    (".github/workflows", "GitHub Actions"),
-    ("pubspec.yaml", "Flutter/Dart"),
-    ("Package.swift", "Swift Package Manager"),
-]
-
-# Directories to skip when scanning
-_SKIP_DIRS: set[str] = {
-    ".git", ".svn", ".hg",
-    "node_modules", "__pycache__", ".ruff_cache", ".mypy_cache", ".pytest_cache",
-    ".tox", ".venv", "venv", "env",
-    "dist", "build", "target", "out",
-    ".next", ".nuxt",
-    ".agents",
-}
-
-_SKIP_FILES: set[str] = {
-    ".DS_Store", "Thumbs.db",
-}
-
-# Limits
-_MAX_TREE_FILES = 200
-_MAX_READ_SIZE = 8192
-
+from deep_code._detection_maps import (
+    _EXT_TO_LANG,
+    _FRAMEWORK_MARKERS,
+    _SKIP_DIRS,
+    _SKIP_FILES,
+    _MAX_TREE_FILES,
+    _MAX_READ_SIZE,
+)
 
 # ---------------------------------------------------------------------------
 # Scanning helpers
@@ -273,16 +198,34 @@ def _detect_dev_commands(root: Path) -> list[tuple[str, str]]:
 # AGENTS.md content builders
 # ---------------------------------------------------------------------------
 
-def generate_agents_md(root: Path) -> str:
-    """Scan a project directory and generate AGENTS.md content."""
+def _collect_project_info(root: Path) -> dict:
+    """Auto-detect project information."""
     files = _collect_tree(root)
     truncated = len(files) >= _MAX_TREE_FILES
 
     languages = _detect_languages(files)
     frameworks = _detect_frameworks(root)
     entry_points = _get_entry_points(root, files)
+    dev_cmds = _detect_dev_commands(root)
     readme_text = _find_readme(root)
 
+    brief = None
+    if readme_text:
+        brief = _extract_brief(readme_text)
+
+    return {
+        "languages": languages,
+        "frameworks": frameworks,
+        "entry_points": entry_points,
+        "dev_commands": dev_cmds,
+        "description": brief,
+        "files": files,
+        "truncated": truncated,
+    }
+
+
+def generate_agents_md(info: dict) -> str:
+    """Build AGENTS.md content from a project info dict."""
     sections: list[str] = []
 
     sections.append("# AGENTS.md\n")
@@ -293,28 +236,28 @@ def generate_agents_md(root: Path) -> str:
 
     # Overview
     sections.append("## Project Overview\n")
-    if readme_text:
-        brief = _extract_brief(readme_text)
-        if brief:
-            sections.append(brief + "\n")
+    if info.get("description"):
+        sections.append(info["description"] + "\n")
 
     # Tech stack
-    if languages or frameworks:
+    if info.get("languages") or info.get("frameworks"):
         sections.append("## Tech Stack\n")
-        if languages:
-            sections.append(f"**Languages:** {', '.join(languages)}")
-        if frameworks:
-            sections.append(f"**Frameworks / Tools:** {', '.join(frameworks)}")
+        if info.get("languages"):
+            sections.append(f"**Languages:** {', '.join(info['languages'])}")
+        if info.get("frameworks"):
+            sections.append(f"**Frameworks / Tools:** {', '.join(info['frameworks'])}")
         sections.append("")
 
     # Entry points
-    if entry_points:
+    if info.get("entry_points"):
         sections.append("## Entry Points\n")
-        for ep in entry_points:
+        for ep in info["entry_points"]:
             sections.append(f"- `{ep}`")
         sections.append("")
 
     # Directory structure
+    files = info.get("files", [])
+    truncated = info.get("truncated", False)
     tree_text = "\n".join(f"- {f}" for f in files)
     if truncated:
         tree_text += f"\n... (truncated at {_MAX_TREE_FILES} files)"
@@ -330,10 +273,9 @@ def generate_agents_md(root: Path) -> str:
         sections.append("")
 
     # Dev commands
-    dev_cmds = _detect_dev_commands(root)
-    if dev_cmds:
+    if info.get("dev_commands"):
         sections.append("## Development\n")
-        for label, cmd in dev_cmds:
+        for label, cmd in info["dev_commands"]:
             sections.append(f"- **{label}**: `{cmd}`")
         sections.append("")
 
@@ -396,28 +338,89 @@ def run_init(target_dir: Path | None = None) -> None:
 
     # Ask before overwriting
     if agents_md_path.exists():
-        try:
-            answer = console.input(
-                "AGENTS.md already exists. Overwrite? (y/[bold green]N[/bold green]): "
-            ).strip().lower()
-        except (KeyboardInterrupt, EOFError):
-            console.print("\n[dim]Cancelled.[/dim]")
-            return
-        if answer not in ("y", "yes"):
+        if not Confirm.ask(
+            "[cyan]AGENTS.md already exists.[/cyan] Overwrite?",
+            default=False,
+        ):
             console.print("[dim]Skipped AGENTS.md (kept existing).[/dim]")
             _ensure_agents_dir(agents_dir, console)
             return
 
-    # Decide: full scan or empty template
     has_content = _has_project_content(root)
 
-    if has_content:
-        console.print("[dim]Scanning project...[/dim]")
-        content = generate_agents_md(root)
-        console.print("[green]Generated AGENTS.md from project analysis.[/green]")
+    # Auto-detect project info
+    console.print("[dim]Scanning project...[/dim]")
+    info = _collect_project_info(root)
+
+    if not has_content:
+        # Empty project: fill in with defaults then let user modify
+        info["languages"] = []
+        info["frameworks"] = []
+        info["dev_commands"] = []
+
+    # Show detected info
+    console.print()
+    console.print("[bold]Detected project info:[/bold]")
+    if info.get("languages"):
+        console.print(f"  [dim]Languages:[/dim] {', '.join(info['languages'])}")
     else:
-        content = generate_empty_agents_md()
-        console.print("[green]Generated empty AGENTS.md template.[/green]")
+        console.print("  [dim]Languages:[/dim] (none detected)")
+    if info.get("frameworks"):
+        console.print(f"  [dim]Frameworks:[/dim] {', '.join(info['frameworks'])}")
+    else:
+        console.print("  [dim]Frameworks:[/dim] (none detected)")
+    if info.get("description"):
+        console.print(f"  [dim]Description:[/dim] {info['description'][:60]}...")
+    if info.get("dev_commands"):
+        console.print(f"  [dim]Dev commands:[/dim]")
+        for label, cmd in info["dev_commands"]:
+            console.print(f"    - {label}: {cmd}")
+
+    # Ask if user wants to customize
+    console.print()
+    if not Confirm.ask("[cyan]Modify detected info?[/cyan]", default=False):
+        # Accept detected info as-is
+        console.print("[dim]Using detected info as-is.[/dim]")
+    else:
+        # Interactive customization
+        console.print()
+
+        # Languages
+        langs_raw = Prompt.ask(
+            "[cyan]Languages[/cyan] (comma-separated, e.g. Python, Go, TypeScript)",
+            default=",".join(info.get("languages", [])) if info.get("languages") else "",
+        )
+        info["languages"] = [l.strip() for l in langs_raw.split(",") if l.strip()]
+
+        # Frameworks
+        fws_raw = Prompt.ask(
+            "[cyan]Frameworks / Tools[/cyan] (comma-separated)",
+            default=",".join(info.get("frameworks", [])) if info.get("frameworks") else "",
+        )
+        info["frameworks"] = [f.strip() for f in fws_raw.split(",") if f.strip()]
+
+        # Description
+        desc = Prompt.ask(
+            "[cyan]Project description[/cyan] (one-line summary)",
+            default=info.get("description") or "",
+        )
+        info["description"] = desc.strip() or None
+
+        # Dev commands
+        console.print("[dim]Dev commands (leave empty to skip):[/dim]")
+        new_dev_cmds: list[tuple[str, str]] = []
+        while True:
+            label = Prompt.ask("  [cyan]Command name[/cyan] (e.g. Test, Build, Lint)", default="")
+            if not label.strip():
+                break
+            cmd = Prompt.ask(f"  [cyan]Command for '{label}'[/cyan]")
+            if cmd.strip():
+                new_dev_cmds.append((label.strip(), cmd.strip()))
+        if new_dev_cmds:
+            info["dev_commands"] = new_dev_cmds
+
+    content = generate_agents_md(info)
+    console.print("[green]Generated AGENTS.md.[/green]")
 
     agents_md_path.write_text(content, encoding="utf-8")
     console.print(f"  [dim]-> {agents_md_path}[/dim]")
