@@ -246,11 +246,13 @@ def main() -> None:
     messages: list = []
 
     while True:
+        console.print("[dim]─" * console.width)
         try:
             user_input = console.input(f"[bold green]{t('input_prompt')}[/bold green]")
         except (KeyboardInterrupt, EOFError):
             console.print(f"\n[dim]{t('goodbye')}[/dim]")
             break
+        console.print("[dim]─" * console.width)
 
         if not user_input.strip():
             continue

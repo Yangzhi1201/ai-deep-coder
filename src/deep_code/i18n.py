@@ -56,7 +56,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "loaded_skills": "[green]已加载 {count} 个技能[/green]",
         "conversation_cleared": "对话已清除。",
         "response_error": "\n[red]响应出错: {error}[/red]",
-        "input_prompt": "你 > ",
+        "input_prompt": "> ",
         "current_language": "当前语言: {lang} ({name})",
         "language_switched": "语言已切换至: {lang} ({name})",
         "unsupported_language": "[yellow]不支持的语言: {lang}。支持: {supported}[/yellow]",
