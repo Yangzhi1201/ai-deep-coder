@@ -61,6 +61,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "language_switched": "语言已切换至: {lang} ({name})",
         "unsupported_language": "[yellow]不支持的语言: {lang}。支持: {supported}[/yellow]",
         "init_reminder": "输入 /init 初始化项目，生成 AGENTS.md 和 .agents/ 目录",
+        "recent_sessions": "最近的会话：",
+        "session_option": "  [{n}] {summary}  ({time})",
+        "restore_prompt": "恢复会话? 填写编号或按 Enter 跳过: ",
+        "session_saved": "[green]会话已自动保存[/green]",
+        "session_restored": "[green]已恢复会话[/green]",
+        "session_save_error": "[red]保存会话失败: {error}[/red]",
     },
     "en": {
         "help_text": """\
@@ -113,6 +119,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "language_switched": "Language switched to: {lang} ({name})",
         "unsupported_language": "[yellow]Unsupported language: {lang}. Supported: {supported}[/yellow]",
         "init_reminder": "Type /init to initialize the project, generating AGENTS.md and .agents/",
+        "recent_sessions": "Recent sessions:",
+        "session_option": "  [{n}] {summary}  ({time} ago)",
+        "restore_prompt": "Restore session? Enter number or press Enter to skip: ",
+        "session_saved": "[green]Session auto-saved[/green]",
+        "session_restored": "[green]Session restored[/green]",
+        "session_save_error": "[red]Failed to save session: {error}[/red]",
     },
 }
 

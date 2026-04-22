@@ -2,12 +2,41 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+# ── Trusted workspaces ──────────────────────────────────────────
+
+_TRUSTED_FILE = Path.home() / ".config" / "deep-code" / "trusted.json"
+
+
+def get_trusted_workspaces() -> list[str]:
+    """Return the list of trusted workspace directories."""
+    if _TRUSTED_FILE.is_file():
+        try:
+            data = json.loads(_TRUSTED_FILE.read_text(encoding="utf-8"))
+            return data.get("trusted_workspaces", [])
+        except (OSError, json.JSONDecodeError):
+            pass
+    return []
+
+
+def add_trusted_workspace(workspace: Path) -> None:
+    """Add a workspace to the trusted list and persist it."""
+    trusted = get_trusted_workspaces()
+    workspace_str = str(workspace.resolve())
+    if workspace_str not in trusted:
+        trusted.append(workspace_str)
+    _TRUSTED_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _TRUSTED_FILE.write_text(
+        json.dumps({"trusted_workspaces": trusted}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 # Each provider has its own set of env vars. The system auto-detects
 # which provider to use based on which MODEL var is set.
@@ -27,6 +56,7 @@ class AppConfig:
     api_key: str | None = None
     base_url: str | None = None
     language: str = "zh"
+    max_sessions: int = 20
 
 
 def _detect_provider() -> tuple[str, str, str | None, str | None]:
@@ -89,6 +119,12 @@ def load_config() -> AppConfig:
 
     language = os.environ.get("DEEP_CODE_LANGUAGE", "zh")
 
+    max_sessions_str = os.environ.get("DEEP_CODE_MAX_SESSIONS", "20")
+    try:
+        max_sessions = int(max_sessions_str)
+    except ValueError:
+        max_sessions = 20
+
     return AppConfig(
         provider=provider,
         model_name=model_name,
@@ -96,4 +132,5 @@ def load_config() -> AppConfig:
         api_key=api_key,
         base_url=base_url,
         language=language,
+        max_sessions=max_sessions,
     )

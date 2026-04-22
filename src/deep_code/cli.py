@@ -14,8 +14,9 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from deep_code.agents import create_coding_agent
-from deep_code.config import AppConfig, load_config
+from deep_code.config import AppConfig, load_config, get_trusted_workspaces, add_trusted_workspace
 from deep_code.i18n import SUPPORTED_LANGUAGES, set_language, t
+from deep_code.session import list_sessions, load_session, save_session
 
 SKILL_DESC_MAX_LEN = 200
 
@@ -34,6 +35,57 @@ _combined_style = Style.from_dict({
     "scrollbar.background": "bg:#313244",
     "scrollbar.button": "bg:#45475a",
 })
+
+
+# ── Helpers ──────────────────────────────────────────────────────────
+
+def _relative_time(iso_str: str) -> str:
+    """Convert an ISO 8601 timestamp to a human-friendly relative string."""
+    from datetime import datetime, timezone
+    try:
+        then = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        delta = now - then
+        total_secs = int(delta.total_seconds())
+        if total_secs < 60:
+            return "刚刚"
+        if total_secs < 3600:
+            return f"{total_secs // 60} 分钟前"
+        if total_secs < 86400:
+            return f"{total_secs // 3600} 小时前"
+        return f"{total_secs // 86400} 天前"
+    except (ValueError, OSError):
+        return iso_str
+
+
+def _check_trusted_workspace(config: AppConfig, console: Console) -> bool:
+    """Prompt for workspace confirmation if not already trusted. Returns True if confirmed."""
+    trusted = get_trusted_workspaces()
+    if str(config.workspace.resolve()) in trusted:
+        return True
+
+    console.print(t("workspace_display", workspace=str(config.workspace)))
+    try:
+        answer = console.input(t("workspace_prompt")).strip()
+    except (KeyboardInterrupt, EOFError):
+        console.print(f"\n[dim]{t('goodbye')}[/dim]")
+        raise SystemExit(0)
+
+    if answer.lower() in ("n", "no"):
+        console.print(f"[dim]{t('cancelled')}[/dim]")
+        raise SystemExit(0)
+    elif answer and answer.lower() not in ("y", "yes", ""):
+        from pathlib import Path
+        new_path = Path(answer).expanduser().resolve()
+        if not new_path.is_dir():
+            console.print(t("dir_not_exist", path=str(new_path)))
+            raise SystemExit(0)
+        config.workspace = new_path
+
+    add_trusted_workspace(config.workspace)
+    if answer and answer.lower() not in ("y", "yes", ""):
+        console.print(t("workspace_changed", workspace=str(config.workspace)))
+    return True
 
 
 def print_welcome(console: Console, config: AppConfig) -> None:
@@ -193,26 +245,27 @@ def main() -> None:
 
     print_welcome(console, config)
 
-    # Let user confirm or change the workspace directory
-    console.print(t("workspace_display", workspace=str(config.workspace)))
-    try:
-        answer = console.input(t("workspace_prompt")).strip()
-    except (KeyboardInterrupt, EOFError):
-        console.print(f"\n[dim]{t('goodbye')}[/dim]")
-        return
+    # Workspace trust check (skipped if already trusted)
+    _check_trusted_workspace(config, console)
 
-    if answer.lower() in ("n", "no"):
-        console.print(f"[dim]{t('cancelled')}[/dim]")
-        return
-    elif answer and answer.lower() not in ("y", "yes", ""):
-        new_path = Path(answer).expanduser().resolve()
-        if not new_path.is_dir():
-            console.print(t("dir_not_exist", path=str(new_path)))
+    # ── Session restore ─────────────────────────────────────────────
+    recent = list_sessions(config.workspace, limit=3)
+    messages: list = []
+    if recent:
+        console.print(t("recent_sessions"))
+        for i, s in enumerate(recent, 1):
+            console.print(
+                t("session_option", n=i, summary=s.summary, time=_relative_time(s.created_at))
+            )
+        try:
+            choice = console.input(t("restore_prompt")).strip()
+        except (KeyboardInterrupt, EOFError):
+            console.print(f"\n[dim]{t('goodbye')}[/dim]")
             return
-        config.workspace = new_path
-        console.print(t("workspace_changed", workspace=str(config.workspace)))
-
-    # Remind user to init if AGENTS.md is missing
+        if choice.isdigit() and 1 <= int(choice) <= len(recent):
+            messages = load_session(config.workspace, recent[int(choice) - 1].session_id)
+            console.print(t("session_restored"))
+    # ── Init reminder + agent setup ──────────────────────────────────
     if not (config.workspace / "AGENTS.md").is_file():
         console.print(f"[yellow]{t('init_reminder')}[/yellow]")
 
@@ -223,12 +276,11 @@ def main() -> None:
         console.print(t("agent_create_failed", error=str(e)))
         return
 
-    # Report what was loaded
     agents_md = config.workspace / "AGENTS.md"
     if agents_md.is_file():
         console.print(t("loaded_agents_md"))
 
-    skill_info: list[tuple[str, str]] = []  # (name, description)
+    skill_info: list[tuple[str, str]] = []
     for sdir in (config.workspace / "skills", config.workspace / ".agents" / "skills"):
         if sdir.is_dir():
             for entry in sorted(sdir.iterdir()):
@@ -247,7 +299,6 @@ def main() -> None:
                                     break
                 except OSError:
                     pass
-                # Truncate to first line
                 first_line = desc.split("\n")[0]
                 if len(first_line) > SKILL_DESC_MAX_LEN:
                     first_line = first_line[:SKILL_DESC_MAX_LEN - 3] + "..."
@@ -262,46 +313,54 @@ def main() -> None:
 
     console.print(f"[dim]{t('agent_ready')}[/dim]\n")
 
-    messages: list = []
+    try:
+        while True:
+            console.print("[dim]─" * console.width)
+            try:
+                user_input = Prompt("> ", completer=_slash_completer, style=_combined_style)
+            except (KeyboardInterrupt, EOFError):
+                console.print(f"\n[dim]{t('goodbye')}[/dim]")
+                break
+            console.print("[dim]─" * console.width)
 
-    while True:
-        console.print("[dim]─" * console.width)
-        try:
-            user_input = Prompt("> ", completer=_slash_completer, style=_combined_style)
-        except (KeyboardInterrupt, EOFError):
-            console.print(f"\n[dim]{t('goodbye')}[/dim]")
-            break
-        console.print("[dim]─" * console.width)
-
-        if not user_input.strip():
-            continue
-
-        if user_input.strip().startswith("/"):
-            cmd_lower = user_input.strip().lower()
-
-            if cmd_lower == "/clear":
-                messages.clear()
-                console.print(f"[dim]{t('conversation_cleared')}[/dim]")
+            if not user_input.strip():
                 continue
 
-            if cmd_lower.startswith("/language"):
-                handled, new_agent = _handle_language_command(
-                    user_input.strip(), config, console
-                )
-                if new_agent is not None:
-                    agent = new_agent
-                if handled:
+            if user_input.strip().startswith("/"):
+                cmd_lower = user_input.strip().lower()
+
+                if cmd_lower == "/clear":
+                    messages.clear()
+                    console.print(f"[dim]{t('conversation_cleared')}[/dim]")
                     continue
 
-            if cmd_lower == "/init":
-                from deep_code.init import run_init
-                run_init(config.workspace, interactive=False)
-                continue
+                if cmd_lower.startswith("/language"):
+                    handled, new_agent = _handle_language_command(
+                        user_input.strip(), config, console
+                    )
+                    if new_agent is not None:
+                        agent = new_agent
+                    if handled:
+                        continue
 
-            if handle_slash_command(user_input.strip(), config, console):
-                continue
+                if cmd_lower == "/init":
+                    from deep_code.init import run_init
+                    run_init(config.workspace, interactive=False)
+                    continue
 
-        messages.append(HumanMessage(content=user_input))
-        console.print()
-        messages = stream_response(agent, messages, console)
-        console.print()
+                if handle_slash_command(user_input.strip(), config, console):
+                    continue
+
+            messages.append(HumanMessage(content=user_input))
+            console.print()
+            messages = stream_response(agent, messages, console)
+            console.print()
+    finally:
+        if messages:
+            try:
+                session_id = save_session(
+                    config.workspace, messages, config.language, config.max_sessions
+                )
+                console.print(t("session_saved"))
+            except Exception as e:
+                console.print(t("session_save_error", error=str(e)))
