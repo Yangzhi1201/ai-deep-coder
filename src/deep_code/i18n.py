@@ -67,6 +67,25 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_saved": "[green]会话已自动保存[/green]",
         "session_restored": "[green]已恢复会话[/green]",
         "session_save_error": "[red]保存会话失败: {error}[/red]",
+        "session_restore_error": "[red]恢复会话失败: {error}[/red]",
+        "plan_optimize_error": "[red]优化问题失败: {error}[/red]",
+        "plan_regenerate_error": "[red]重新优化失败: {error}[/red]",
+        "plan_generate_error": "[red]生成方案失败: {error}[/red]",
+        "plan_regenerate_plan_error": "[red]重新生成方案失败: {error}[/red]",
+        "plan_execute_error": "[red]执行方案失败: {error}[/red]",
+        "plan_model_create_error": "[red]无法创建模型实例[/red]",
+        # Plan mode
+        "plan_mode_title": "📋 计划模式",
+        "plan_mode_desc": "三步式编码：优化问题 → 确认方案 → 执行",
+        "plan_step1_prompt": "\n[bold cyan]步骤 1/3: 优化问题[/bold cyan]\n",
+        "plan_step2_prompt": "\n[bold cyan]步骤 2/3: 确认方案[/bold cyan]\n",
+        "plan_step3_exec": "\n[bold cyan]步骤 3/3: 执行方案[/bold cyan]\n开始执行...\n",
+        "plan_confirm": "\n输入 [bold green]y/yes[/bold green] 确认，或输入修改意见：",
+        "plan_cancel": "[yellow]已取消计划模式[/yellow]",
+        "plan_restart": "[cyan]输入 /plan 重新开始[/cyan]",
+        "plan_success": "[green]✅ 计划执行完成！[/green]",
+        "plan_mode_hint": "提示：使用 /plan 进入计划模式，可视化每个编码步骤",
+        "plan_ask_question": "请描述你想要完成的任务或问题：",
     },
     "en": {
         "help_text": """\
@@ -82,6 +101,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 - `/language`  — Switch language (zh/en)
 - `/clear`     — Clear conversation history
 - `/init`      — Initialize project (generate AGENTS.md)
+- `/plan`      — Enter plan mode (3-step coding)
 - `/quit`      — Exit the application
 
 **Capabilities:**
@@ -89,6 +109,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 - Ask to **review** code: "Review the code in src/main.py"
 - Ask to **explain** code: "What does the handle_request function do?"
 - Ask to **fix bugs**: "This test is failing with IndexError..."
+- Use **plan mode**: Type /plan for step-by-step coding
 """,
         "welcome_title": "Welcome",
         "welcome_body": (
@@ -125,6 +146,24 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "session_saved": "[green]Session auto-saved[/green]",
         "session_restored": "[green]Session restored[/green]",
         "session_save_error": "[red]Failed to save session: {error}[/red]",
+        "session_restore_error": "[red]Failed to restore session: {error}[/red]",
+        "plan_optimize_error": "[red]Failed to optimize question: {error}[/red]",
+        "plan_regenerate_error": "[red]Failed to regenerate: {error}[/red]",
+        "plan_generate_error": "[red]Failed to generate plan: {error}[/red]",
+        "plan_regenerate_plan_error": "[red]Failed to regenerate plan: {error}[/red]",
+        "plan_execute_error": "[red]Failed to execute plan: {error}[/red]",
+        "plan_model_create_error": "[red]Failed to create model instance[/red]",
+        "plan_mode_title": "📋 Plan Mode",
+        "plan_mode_desc": "3-step coding: Optimize question → Confirm plan → Execute",
+        "plan_step1_prompt": "\n[bold cyan]Step 1/3: Optimize Question[/bold cyan]\n",
+        "plan_step2_prompt": "\n[bold cyan]Step 2/3: Confirm Plan[/bold cyan]\n",
+        "plan_step3_exec": "\n[bold cyan]Step 3/3: Execute Plan[/bold cyan]\nStarting execution...\n",
+        "plan_confirm": "\nEnter [bold green]y/yes[/bold green] to confirm, or enter your feedback:",
+        "plan_cancel": "[yellow]Plan mode cancelled[/yellow]",
+        "plan_restart": "[cyan]Type /plan to restart[/cyan]",
+        "plan_success": "[green]✅ Plan execution completed![/green]",
+        "plan_mode_hint": "Tip: Use /plan to enter plan mode for visual step-by-step coding",
+        "plan_ask_question": "Describe the task or problem you want to accomplish:",
     },
 }
 

@@ -17,10 +17,11 @@ from deep_code.agents import create_coding_agent
 from deep_code.config import AppConfig, load_config, get_trusted_workspaces, add_trusted_workspace
 from deep_code.i18n import SUPPORTED_LANGUAGES, set_language, t
 from deep_code.session import list_sessions, load_session, save_session
+from deep_code.plan_mode import run_plan_mode
 
 SKILL_DESC_MAX_LEN = 200
 
-SLASH_COMMANDS = ["/help", "/model", "/workspace", "/language", "/clear", "/init", "/quit"]
+SLASH_COMMANDS = ["/help", "/model", "/workspace", "/language", "/clear", "/init", "/plan", "/quit"]
 
 _input_style = Style.from_dict({"prompt": "bold green"})
 _slash_completer = WordCompleter(SLASH_COMMANDS)
@@ -346,6 +347,17 @@ def main() -> None:
                 if cmd_lower == "/init":
                     from deep_code.init import run_init
                     run_init(config.workspace, interactive=False)
+                    continue
+
+                if cmd_lower == "/plan":
+                    console.print(t("plan_mode_hint"))
+                    try:
+                        question = console.input(t("plan_ask_question")).strip()
+                    except (KeyboardInterrupt, EOFError):
+                        console.print(f"\n[dim]{t('goodbye')}[/dim]")
+                        break
+                    if question:
+                        run_plan_mode(question, config, console)
                     continue
 
                 if handle_slash_command(user_input.strip(), config, console):
